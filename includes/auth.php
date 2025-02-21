@@ -28,16 +28,25 @@ class Auth {
             throw new Exception("البريد الإلكتروني مستخدم بالفعل");
         }
 
-        // If both checks pass, proceed with registration
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $this->conn->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
+        
+        // تعديل الاستعلام ليشمل الـ role
+        $stmt = $this->conn->prepare("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, 'user')");
         $stmt->bind_param("sss", $username, $email, $hashed_password);
         
-        return $stmt->execute();
+        if ($stmt->execute()) {
+            // تسجيل الدخول مباشرة بعد التسجيل
+            $user_id = $this->conn->insert_id;
+            $_SESSION['user_id'] = $user_id;
+            $_SESSION['username'] = $username;
+            $_SESSION['role'] = 'user';
+            return true;
+        }
+        return false;
     }
 
     public function login($email, $password) {
-        $stmt = $this->conn->prepare("SELECT id, username, password, role FROM users WHERE email = ?");
+        $stmt = $this->conn->prepare("SELECT id, username, password, role FROM users WHERE email = ? LIMIT 1");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -45,6 +54,8 @@ class Auth {
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
             if (password_verify($password, $user['password'])) {
+                // تحديث معلومات الجلسة
+                session_regenerate_id(true); // لزيادة الأمان
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];

@@ -122,6 +122,15 @@ if ($auth->isLoggedIn()) {
                             <p>الحالة: <?php echo $product['condition_status'] === 'new' ? 'جديد' : 'مستعمل'; ?></p>
                             <p>تاريخ النشر: <?php echo date('Y-m-d', strtotime($product['created_at'])); ?></p>
                         </div>
+
+                        <?php if ($auth->isLoggedIn() && $_SESSION['user_id'] !== $product['user_id']): ?>
+                            <div class="mt-4 flex space-x-4">
+                                <a href="messages.php?user_id=<?php echo $product['user_id']; ?>" 
+                                   class="flex-1 bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700">
+                                    محادثة مباشرة مع البائع
+                                </a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

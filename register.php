@@ -18,15 +18,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'كلمات المرور غير متطابقة';
     } else {
         try {
+            // تنظيف الجلسة القديمة قبل التسجيل
+            session_unset();
+            session_destroy();
+            session_start();
+            
             if ($auth->register($username, $email, $password)) {
-                // Log the user in automatically after registration
-                $auth->login($email, $password);
+                error_log("Registration successful for email: " . $email);
+                error_log("New session data: " . print_r($_SESSION, true));
+                
                 header('Location: index.php');
                 exit;
             } else {
                 $error = 'حدث خطأ أثناء التسجيل';
             }
         } catch (Exception $e) {
+            error_log("Registration error: " . $e->getMessage());
             $error = $e->getMessage();
         }
     }

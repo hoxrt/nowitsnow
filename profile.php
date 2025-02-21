@@ -114,6 +114,10 @@ if (isset($_POST['mark_sold'])) {
                                     </p>
                                 </div>
                                 <div class="space-x-2">
+                                    <a href="edit-product.php?id=<?php echo $product['id']; ?>" 
+                                       class="inline-block bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+                                        تعديل
+                                    </a>
                                     <?php if ($product['status'] === 'available'): ?>
                                         <form method="POST" class="inline">
                                             <input type="hidden" name="mark_sold" value="<?php echo $product['id']; ?>">

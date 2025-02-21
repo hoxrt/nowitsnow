@@ -12,12 +12,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    if ($auth->login($email, $password)) {
-        header('Location: index.php');
-        exit;
-    } else {
-        $error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+    try {
+        if ($auth->login($email, $password)) {
+            // تسجيل معلومات الجلسة للتأكد من صحتها
+            error_log("Login successful for email: " . $email);
+            error_log("Session data: " . print_r($_SESSION, true));
+            
+            header('Location: index.php');
+            exit;
+        } else {
+            error_log("Login failed for email: " . $email);
+            $error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+        }
+    } catch (Exception $e) {
+        error_log("Login error: " . $e->getMessage());
+        $error = 'حدث خطأ أثناء تسجيل الدخول';
     }
+}
+
+// التحقق من حالة الجلسة الحالية
+if (isset($_SESSION['user_id'])) {
+    error_log("Current session user_id: " . $_SESSION['user_id']);
+    error_log("Current session data: " . print_r($_SESSION, true));
 }
 ?>
 <!DOCTYPE html>
