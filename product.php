@@ -15,17 +15,22 @@ if (!isset($_GET['id'])) {
 }
 
 $product_id = (int)$_GET['id'];
-$stmt = $conn->prepare("SELECT p.*, u.username, u.email FROM products p 
-                       JOIN users u ON p.user_id = u.id 
-                       WHERE p.id = ?");
+$query = "SELECT p.*, u.username, u.email FROM products p 
+          JOIN users u ON p.user_id = u.id 
+          WHERE p.id = ?";
+
+$stmt = $conn->prepare($query);
 $stmt->bind_param("i", $product_id);
 $stmt->execute();
-$product = $stmt->get_result()->fetch_assoc();
+$result = $stmt->get_result();
+$product = $result->fetch_assoc();
 
 if (!$product) {
     header('Location: index.php');
     exit;
 }
+
+$pageTitle = $product['title'] . ' - سوق القرطاسية الجامعي';
 
 // Handle sending messages
 if ($auth->isLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -65,7 +70,7 @@ if ($auth->isLoggedIn()) {
     <title><?php echo htmlspecialchars($product['title']); ?> - سوق القرطاسية الجامعي</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50">
     <!-- Navigation -->
     <nav class="bg-blue-600 text-white shadow-lg mb-8">
         <div class="container mx-auto px-4 py-3">
@@ -82,98 +87,122 @@ if ($auth->isLoggedIn()) {
         </div>
     </nav>
 
-    <div class="container mx-auto px-4">
-        <div class="max-w-4xl mx-auto">
-            <?php if ($message): ?>
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                    <?php echo htmlspecialchars($message); ?>
-                </div>
-            <?php endif; ?>
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Back Button -->
+        <a href="javascript:history.back()" class="inline-flex items-center text-blue-600 mb-6 hover:text-blue-800">
+            <i class="fas fa-arrow-right ml-2"></i>
+            العودة للصفحة السابقة
+        </a>
 
-            <?php if ($error): ?>
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                    <?php echo htmlspecialchars($error); ?>
+        <!-- Product Details -->
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="md:flex">
+                <!-- Product Image -->
+                <div class="md:w-1/2">
+                    <div class="relative pb-[75%]">
+                        <img src="<?php echo htmlspecialchars($product['image_path']); ?>" 
+                             alt="<?php echo htmlspecialchars($product['title']); ?>"
+                             class="absolute top-0 left-0 w-full h-full object-contain bg-gray-100">
+                    </div>
                 </div>
-            <?php endif; ?>
 
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                <div class="md:flex">
-                    <?php if ($product['image_path']): ?>
-                        <div class="md:flex-shrink-0">
-                            <img class="h-48 w-full object-cover md:w-48" 
-                                 src="<?php echo htmlspecialchars($product['image_path']); ?>" 
-                                 alt="<?php echo htmlspecialchars($product['title']); ?>">
+                <!-- Product Info -->
+                <div class="md:w-1/2 p-6">
+                    <div class="flex justify-between items-start">
+                        <h1 class="text-2xl font-bold mb-2"><?php echo htmlspecialchars($product['title']); ?></h1>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                            <?php echo $product['condition_status'] === 'new' ? 'جديد' : 'مستعمل'; ?>
+                        </span>
+                    </div>
+
+                    <div class="text-2xl font-bold text-blue-600 mb-4">
+                        <?php echo number_format($product['price'], 2); ?> ريال
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 class="font-bold text-lg mb-2">الوصف</h2>
+                        <p class="text-gray-600 whitespace-pre-line">
+                            <?php echo htmlspecialchars($product['description']); ?>
+                        </p>
+                    </div>
+
+                    <div class="border-t pt-4 mb-6">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-user-circle text-gray-400 text-xl ml-2"></i>
+                            <span class="font-bold"><?php echo htmlspecialchars($product['username']); ?></span>
+                        </div>
+                        <div class="flex items-center text-gray-500 text-sm">
+                            <i class="fas fa-clock ml-2"></i>
+                            <span>تم النشر: <?php echo (new DateTime($product['created_at']))->format('Y/m/d'); ?></span>
+                        </div>
+                    </div>
+
+                    <?php if ($auth->isLoggedIn() && $_SESSION['user_id'] !== $product['user_id']): ?>
+                        <!-- Contact Seller Form -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-bold mb-4">تواصل مع البائع</h3>
+                            <form action="send_message.php" method="POST" class="space-y-4">
+                                <input type="hidden" name="product_id" value="<?php echo $product_id; ?>">
+                                <input type="hidden" name="receiver_id" value="<?php echo $product['user_id']; ?>">
+                                
+                                <textarea name="message" rows="3" required
+                                    placeholder="اكتب رسالتك هنا..."
+                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"></textarea>
+                                
+                                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-paper-plane ml-2"></i>
+                                    إرسال رسالة
+                                </button>
+                            </form>
+                        </div>
+                    <?php elseif (!$auth->isLoggedIn()): ?>
+                        <div class="bg-blue-50 text-blue-600 p-4 rounded-lg text-center">
+                            <p class="mb-2">يجب تسجيل الدخول للتواصل مع البائع</p>
+                            <a href="login.php" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                تسجيل الدخول
+                            </a>
                         </div>
                     <?php endif; ?>
-                    <div class="p-8">
-                        <h1 class="text-2xl font-bold mb-2">
-                            <?php echo htmlspecialchars($product['title']); ?>
-                        </h1>
-                        <p class="text-gray-600 mb-4">
-                            <?php echo nl2br(htmlspecialchars($product['description'])); ?>
-                        </p>
-                        <div class="mb-4">
-                            <span class="font-bold text-lg text-blue-600">
-                                <?php echo number_format($product['price'], 2); ?> ريال
-                            </span>
-                        </div>
-                        <div class="text-sm text-gray-600">
-                            <p>البائع: <?php echo htmlspecialchars($product['username']); ?></p>
-                            <p>الحالة: <?php echo $product['condition_status'] === 'new' ? 'جديد' : 'مستعمل'; ?></p>
-                            <p>تاريخ النشر: <?php echo date('Y-m-d', strtotime($product['created_at'])); ?></p>
-                        </div>
-
-                        <?php if ($auth->isLoggedIn() && $_SESSION['user_id'] !== $product['user_id']): ?>
-                            <div class="mt-4 flex space-x-4">
-                                <a href="messages.php?user_id=<?php echo $product['user_id']; ?>" 
-                                   class="flex-1 bg-green-600 text-white text-center py-2 px-4 rounded-lg hover:bg-green-700">
-                                    محادثة مباشرة مع البائع
-                                </a>
-                            </div>
-                        <?php endif; ?>
-                    </div>
                 </div>
             </div>
+        </div>
 
-            <?php if ($auth->isLoggedIn() && $_SESSION['user_id'] !== $product['user_id']): ?>
-                <!-- Message Form -->
-                <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-xl font-bold mb-4">راسل البائع</h2>
-                    <form method="POST" class="space-y-4">
-                        <div>
-                            <textarea name="message" rows="4" required
-                                      class="w-full rounded-md border-gray-300 shadow-sm"
-                                      placeholder="اكتب رسالتك هنا..."></textarea>
+        <!-- Similar Products -->
+        <div class="mt-12">
+            <h2 class="text-xl font-bold mb-6">منتجات مشابهة</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <?php
+                $similar_query = "SELECT p.*, u.username FROM products p 
+                                JOIN users u ON p.user_id = u.id 
+                                WHERE p.category = ? AND p.id != ? AND p.status = 'available'
+                                LIMIT 4";
+                $stmt = $conn->prepare($similar_query);
+                $stmt->bind_param("si", $product['category'], $product_id);
+                $stmt->execute();
+                $similar_products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                
+                foreach ($similar_products as $similar): ?>
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300">
+                        <div class="relative pb-[75%]">
+                            <img src="<?php echo htmlspecialchars($similar['image_path']); ?>" 
+                                 alt="<?php echo htmlspecialchars($similar['title']); ?>"
+                                 class="absolute top-0 left-0 w-full h-full object-cover">
                         </div>
-                        <button type="submit" 
-                                class="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
-                            إرسال
-                        </button>
-                    </form>
-                </div>
-            <?php endif; ?>
-
-            <?php if (!empty($messages)): ?>
-                <!-- Messages -->
-                <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-xl font-bold mb-4">المحادثات</h2>
-                    <div class="space-y-4">
-                        <?php foreach ($messages as $msg): ?>
-                            <div class="border-b pb-4">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <span class="font-bold"><?php echo htmlspecialchars($msg['sender_name']); ?></span>
-                                        <p class="mt-1"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></p>
-                                    </div>
-                                    <span class="text-sm text-gray-500">
-                                        <?php echo date('Y-m-d H:i', strtotime($msg['created_at'])); ?>
-                                    </span>
-                                </div>
+                        <div class="p-4">
+                            <h3 class="font-bold mb-2 truncate"><?php echo htmlspecialchars($similar['title']); ?></h3>
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-blue-600">
+                                    <?php echo number_format($similar['price'], 2); ?> ريال
+                                </span>
+                                <a href="product.php?id=<?php echo $similar['id']; ?>" 
+                                   class="text-blue-600 hover:text-blue-800">
+                                    عرض التفاصيل
+                                </a>
                             </div>
-                        <?php endforeach; ?>
+                        </div>
                     </div>
-                </div>
-            <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
     </div>
 </body>
